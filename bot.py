@@ -1,44 +1,160 @@
 # bot.py
 import os
+import logging
+from datetime import datetime
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-from dotenv import load_dotenv
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+import aiohttp
+import aiofiles
+import uuid
+import mimetypes
 
-load_dotenv()
+# Configure logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-BASE_URL = os.getenv("BASE_URL")
+# Environment variables
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+BASE_URL = os.getenv('BASE_URL')
+FILES_DIR = os.getenv('FILES_DIR', 'files')
 
-UPLOAD_DIR = "downloads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# Constants
+MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024  # 5GB
+ALLOWED_MIME_TYPES = {
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    'video/mp4', 'video/quicktime', 'video/x-msvideo',
+    'audio/mpeg', 'audio/ogg', 'audio/wav',
+    'application/pdf', 'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain', 'text/csv'
+}
+
+# Ensure files directory exists
+os.makedirs(FILES_DIR, exist_ok=True)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Send me a file and I'll return a download link.")
+    """Send a message when the command /start is issued."""
+    welcome_message = (
+        "👋 Welcome to the File Sharing Bot!\n\n"
+        "Simply send me any file (document, photo, video, audio) and I'll provide you with a direct download link.\n\n"
+        "Use /help to see available commands."
+    )
+    await update.message.reply_text(welcome_message)
 
-async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Just send any file. I’ll upload and return a link.")
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send a message when the command /help is issued."""
+    help_message = (
+        "📚 Available Commands:\n\n"
+        "/start - Start the bot\n"
+        "/help - Show this help message\n\n"
+        "To share a file, simply send it to this chat. I'll provide you with a direct download link.\n\n"
+        f"⚠️ File size limit: {MAX_FILE_SIZE // (1024 * 1024)}MB"
+    )
+    await update.message.reply_text(help_message)
 
-async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    file = update.message.document or update.message.photo[-1] or update.message.video or update.message.audio
-    if not file:
-        await update.message.reply_text("Unsupported file type.")
+def is_file_allowed(file_name: str, mime_type: str = None) -> bool:
+    """Check if the file type is allowed."""
+    if mime_type:
+        return mime_type in ALLOWED_MIME_TYPES
+    return mimetypes.guess_type(file_name)[0] in ALLOWED_MIME_TYPES
+
+async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle document files."""
+    if update.message.document.file_size > MAX_FILE_SIZE:
+        await update.message.reply_text(f"❌ File is too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB")
+        return
+    
+    if not is_file_allowed(update.message.document.file_name, update.message.document.mime_type):
+        await update.message.reply_text("❌ This file type is not allowed.")
         return
 
-    file_name = f"{file.file_unique_id}_{file.file_name or 'file'}"
-    file_path = os.path.join(UPLOAD_DIR, file_name)
+    file = await update.message.document.get_file()
+    file_name = update.message.document.file_name
+    await download_and_send_link(update, file, file_name)
 
-    telegram_file = await file.get_file()
-    await telegram_file.download_to_drive(file_path)
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle photo files."""
+    photo = update.message.photo[-1]  # Get the highest quality photo
+    if photo.file_size > MAX_FILE_SIZE:
+        await update.message.reply_text(f"❌ Photo is too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB")
+        return
 
-    download_url = f"{BASE_URL}/file/{file_name}"
-    await update.message.reply_text(f"Download link: {download_url}")
+    file = await photo.get_file()
+    file_name = f"photo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+    await download_and_send_link(update, file, file_name)
+
+async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle video files."""
+    if update.message.video.file_size > MAX_FILE_SIZE:
+        await update.message.reply_text(f"❌ Video is too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB")
+        return
+
+    video = update.message.video
+    file = await video.get_file()
+    file_name = f"video_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
+    await download_and_send_link(update, file, file_name)
+
+async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle audio files."""
+    if update.message.audio.file_size > MAX_FILE_SIZE:
+        await update.message.reply_text(f"❌ Audio file is too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB")
+        return
+
+    audio = update.message.audio
+    file = await audio.get_file()
+    file_name = audio.file_name or f"audio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp3"
+    await download_and_send_link(update, file, file_name)
+
+async def download_and_send_link(update: Update, file, file_name):
+    """Download file and send the download link."""
+    try:
+        # Generate unique filename
+        unique_id = str(uuid.uuid4())[:8]
+        file_extension = os.path.splitext(file_name)[1]
+        unique_filename = f"{unique_id}{file_extension}"
+        file_path = os.path.join(FILES_DIR, unique_filename)
+
+        # Download file
+        await file.download_to_drive(file_path)
+        
+        # Generate download link
+        download_url = f"{BASE_URL}/{unique_filename}"
+        
+        # Send confirmation message
+        await update.message.reply_text(
+            f"✅ File uploaded successfully!\n\n"
+            f"📥 Download link:\n{download_url}"
+        )
+    except Exception as e:
+        logger.error(f"Error handling file: {e}")
+        await update.message.reply_text("❌ Sorry, there was an error processing your file. Please try again.")
 
 def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_cmd))
-    app.add_handler(MessageHandler(filters.ALL, handle_file))
-    app.run_polling()
+    """Start the bot."""
+    if not all([BOT_TOKEN, BASE_URL]):
+        logger.error("Missing required environment variables: BOT_TOKEN, BASE_URL")
+        return
 
-if __name__ == "__main__":
+    if not os.path.exists(FILES_DIR):
+        logger.error(f"Files directory {FILES_DIR} does not exist and could not be created")
+        return
+
+    # Create the Application
+    application = Application.builder().token(BOT_TOKEN).build()
+
+    # Add handlers
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+    application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    application.add_handler(MessageHandler(filters.VIDEO, handle_video))
+    application.add_handler(MessageHandler(filters.AUDIO, handle_audio))
+
+    # Start the Bot
+    application.run_polling()
+
+if __name__ == '__main__':
     main()
