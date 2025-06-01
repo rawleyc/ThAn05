@@ -30,9 +30,14 @@ ALLOWED_MIME_TYPES = {
     'application/pdf', 'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'text/plain', 'text/csv',
-    'application/x-rar-compressed', 'application/rar',
-    'application/zip', 'application/x-zip-compressed'
+    'application/x-rar-compressed', 'application/rar',  # RAR files
+    'application/zip', 'application/x-zip-compressed',  # ZIP files
+    'application/octet-stream'  # Generic binary files
 }
+
+# Add RAR MIME type to mimetypes
+mimetypes.add_type('application/x-rar-compressed', '.rar')
+mimetypes.add_type('application/rar', '.rar')
 
 # Ensure files directory exists
 os.makedirs(FILES_DIR, exist_ok=True)
@@ -59,9 +64,18 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def is_file_allowed(file_name: str, mime_type: str = None) -> bool:
     """Check if the file type is allowed."""
+    # Check file extension
+    ext = os.path.splitext(file_name)[1].lower()
+    if ext in ['.rar', '.zip']:
+        return True
+        
+    # Check MIME type
     if mime_type:
         return mime_type in ALLOWED_MIME_TYPES
-    return mimetypes.guess_type(file_name)[0] in ALLOWED_MIME_TYPES
+        
+    # Fallback to mimetypes guess
+    guessed_type = mimetypes.guess_type(file_name)[0]
+    return guessed_type in ALLOWED_MIME_TYPES
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle document files."""
