@@ -1,186 +1,178 @@
 # Telegram File Sharing Bot
 
-A Telegram bot that allows users to share files and get direct download links. The bot downloads files to a server and provides HTTP URLs for downloading them.
+A Telegram bot that allows users to share files and get direct download links. The bot runs on an Ubuntu server and uses screen sessions for process management.
 
 ## Features
 
-- Accepts various file types (documents, photos, videos, audio)
-- Generates unique filenames to prevent conflicts
-- Provides direct download links
-- Simple Flask server for file hosting
-- Screen sessions for process management
+- Supports various file types:
+  - Images (JPEG, PNG, GIF, WebP)
+  - Videos (MP4, MOV, AVI)
+  - Audio files (MP3, OGG, WAV)
+  - Documents (PDF, DOC, DOCX)
+  - Archives (RAR, ZIP)
+  - Text files (TXT, CSV)
+- File size limit: 5GB
+- Direct download links via HTTP
+- Automatic file cleanup
+- Screen session management
+- Easy update process
 
 ## Prerequisites
 
-- Ubuntu 20.04 or later
-- Python 3.8 or later
-- Oracle Cloud VM instance
-- Telegram Bot Token (get from @BotFather)
+- Ubuntu server
+- Python 3.8 or higher
+- Git
+- Screen
 
 ## Installation
 
-1. **Update system and install dependencies**
-
+1. Clone the repository:
 ```bash
-sudo apt update
-sudo apt upgrade -y
-sudo apt install python3-pip python3-venv nginx screen -y
+git clone https://github.com/YOUR_USERNAME/ThAn05.git
+cd ThAn05
 ```
 
-2. **Create project directory**
-
+2. Set up environment variables in `.bashrc`:
 ```bash
-mkdir -p ~/telegram-file-bot
-cd ~/telegram-file-bot
+echo '
+# Telegram Bot Environment Variables
+export BOT_TOKEN=your_bot_token_here
+export BASE_URL=http://your-domain:8080
+export FILES_DIR=files
+' >> ~/.bashrc
+
+source ~/.bashrc
 ```
 
-3. **Set up Python virtual environment**
-
+3. Make scripts executable:
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+chmod +x start.sh stop.sh update.sh
 ```
 
-4. **Configure environment variables**
-
-Create a `.env` file in the project directory:
-
+4. Start the services:
 ```bash
-nano .env
-```
-
-Add the following content (replace with your values):
-
-```
-BOT_TOKEN=your_telegram_bot_token
-BASE_URL=http://your-server-ip:8080
-FILES_DIR=/home/ubuntu/telegram-file-bot/files
-```
-
-5. **Make scripts executable**
-
-```bash
-chmod +x start.sh stop.sh
-```
-
-6. **Start the services**
-
-```bash
-./start.sh
-```
-
-This will start both the bot and the file server in separate screen sessions.
-
-## Managing the Services
-
-### Viewing Logs
-
-To view the bot logs:
-```bash
-screen -r telegram-bot
-```
-
-To view the server logs:
-```bash
-screen -r file-server
-```
-
-To detach from a screen session (leave it running in the background):
-- Press `Ctrl+A`, then `D`
-
-### Stopping Services
-
-To stop both services:
-```bash
-./stop.sh
-```
-
-## Optional: Nginx Configuration with SSL
-
-1. **Install Certbot**
-
-```bash
-sudo apt install certbot python3-certbot-nginx -y
-```
-
-2. **Create Nginx configuration**
-
-```bash
-sudo nano /etc/nginx/sites-available/telegram-bot
-```
-
-Add the following configuration:
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    location / {
-        proxy_pass http://localhost:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
-3. **Enable the site and get SSL certificate**
-
-```bash
-sudo ln -s /etc/nginx/sites-available/telegram-bot /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl restart nginx
-sudo certbot --nginx -d your-domain.com
-```
-
-4. **Update BASE_URL in .env**
-
-After setting up SSL, update the BASE_URL in your .env file to use HTTPS:
-
-```
-BASE_URL=https://your-domain.com
-```
-
-Then restart the services:
-
-```bash
-./stop.sh
 ./start.sh
 ```
 
 ## Usage
 
-1. Start a chat with your bot on Telegram
-2. Send any file (document, photo, video, or audio)
-3. The bot will respond with a direct download link
+### Bot Commands
+- `/start` - Start the bot
+- `/help` - Show help message
+
+### File Sharing
+1. Send any supported file to the bot
+2. The bot will provide a direct download link
+3. Files are automatically cleaned up after 24 hours
+
+### Server Management
+
+#### Start Services
+```bash
+./start.sh
+```
+This will:
+- Create Python virtual environment if needed
+- Install dependencies
+- Start bot and server in screen sessions
+
+#### Stop Services
+```bash
+./stop.sh
+```
+This will:
+- Stop all screen sessions
+- Kill any remaining processes
+- Free port 8080
+
+#### Update Bot
+```bash
+./update.sh
+```
+This will:
+- Stop services
+- Pull latest changes from GitHub
+- Update dependencies
+- Restart services
+
+### Viewing Logs
+- Bot logs: `screen -r telegram-bot`
+- Server logs: `screen -r file-server`
+- Detach from screen: Press `Ctrl+A` then `D`
+
+## Environment Variables
+
+- `BOT_TOKEN`: Your Telegram bot token from @BotFather
+- `BASE_URL`: Your server's domain or IP with port (e.g., http://your-domain:8080)
+- `FILES_DIR`: Directory to store uploaded files (default: 'files')
+
+## File Types Support
+
+### Images
+- JPEG
+- PNG
+- GIF
+- WebP
+
+### Videos
+- MP4
+- MOV
+- AVI
+
+### Audio
+- MP3
+- OGG
+- WAV
+
+### Documents
+- PDF
+- DOC
+- DOCX
+
+### Archives
+- RAR
+- ZIP
+
+### Text
+- TXT
+- CSV
+
+## Security Features
+
+- File type validation
+- File size limits
+- Automatic file cleanup
+- CORS support
+- Security headers
 
 ## Troubleshooting
 
-- Check if services are running:
-  ```bash
-  screen -ls
-  ```
+### Port 8080 in Use
+If port 8080 is already in use:
+```bash
+./stop.sh
+```
+This will free the port and kill any lingering processes.
 
-- Ensure ports are open:
-  ```bash
-  sudo ufw allow 80/tcp
-  sudo ufw allow 443/tcp
-  ```
+### Screen Sessions
+To list all screen sessions:
+```bash
+screen -ls
+```
 
-- Check file permissions:
-  ```bash
-  sudo chown -R ubuntu:ubuntu ~/telegram-file-bot
-  ```
+To kill all screen sessions:
+```bash
+pkill screen
+```
 
-## Security Considerations
+## Contributing
 
-1. Keep your BOT_TOKEN secure
-2. Regularly update system and Python packages
-3. Consider implementing rate limiting
-4. Monitor server resources and disk space
-5. Back up important files regularly
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
 ## License
 
-MIT License
+This project is licensed under the MIT License - see the LICENSE file for details.

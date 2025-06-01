@@ -22,7 +22,8 @@ BASE_URL = os.getenv('BASE_URL')
 FILES_DIR = os.getenv('FILES_DIR', 'files')
 
 # Constants
-MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024  # 5GB
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB (Telegram's limit for regular bots)
+MAX_PHOTO_SIZE = 10 * 1024 * 1024  # 10MB (Telegram's limit for photos)
 ALLOWED_MIME_TYPES = {
     'image/jpeg', 'image/png', 'image/gif', 'image/webp',
     'video/mp4', 'video/quicktime', 'video/x-msvideo',
@@ -31,8 +32,7 @@ ALLOWED_MIME_TYPES = {
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'text/plain', 'text/csv',
     'application/x-rar-compressed', 'application/rar',  # RAR files
-    'application/zip', 'application/x-zip-compressed',  # ZIP files
-    'application/octet-stream'  # Generic binary files
+    'application/zip', 'application/x-zip-compressed'   # ZIP files
 }
 
 # Add RAR MIME type to mimetypes
@@ -58,7 +58,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/start - Start the bot\n"
         "/help - Show this help message\n\n"
         "To share a file, simply send it to this chat. I'll provide you with a direct download link.\n\n"
-        f"⚠️ File size limit: {MAX_FILE_SIZE // (1024 * 1024)}MB"
+        f"⚠️ File size limits:\n"
+        f"- Photos: {MAX_PHOTO_SIZE // (1024 * 1024)}MB\n"
+        f"- Other files: {MAX_FILE_SIZE // (1024 * 1024)}MB"
     )
     await update.message.reply_text(help_message)
 
@@ -94,8 +96,8 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle photo files."""
     photo = update.message.photo[-1]  # Get the highest quality photo
-    if photo.file_size > MAX_FILE_SIZE:
-        await update.message.reply_text(f"❌ Photo is too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB")
+    if photo.file_size > MAX_PHOTO_SIZE:
+        await update.message.reply_text(f"❌ Photo is too large. Maximum size is {MAX_PHOTO_SIZE // (1024 * 1024)}MB")
         return
 
     file = await photo.get_file()
