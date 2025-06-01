@@ -46,8 +46,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send a message when the command /start is issued."""
     welcome_message = (
         "👋 Welcome to the File Sharing Bot!\n\n"
-        "Simply send me any file (document, photo, video, audio) and I'll provide you with a direct download link.\n\n"
-        "Use /help to see available commands."
+        "📤 Send me any file and I'll provide you with a direct download link.\n\n"
+        "📋 File size limits:\n"
+        f"• Photos: {MAX_PHOTO_SIZE // (1024 * 1024)}MB\n"
+        f"• Other files: {MAX_FILE_SIZE // (1024 * 1024)}MB\n\n"
+        "📚 Use /help to see all available commands and supported file types."
     )
     await update.message.reply_text(welcome_message)
 
@@ -57,10 +60,14 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📚 Available Commands:\n\n"
         "/start - Start the bot\n"
         "/help - Show this help message\n\n"
-        "To share a file, simply send it to this chat. I'll provide you with a direct download link.\n\n"
-        f"⚠️ File size limits:\n"
-        f"- Photos: {MAX_PHOTO_SIZE // (1024 * 1024)}MB\n"
-        f"- Other files: {MAX_FILE_SIZE // (1024 * 1024)}MB"
+        "📤 Supported File Types:\n"
+        "• Images (JPEG, PNG, GIF, WebP) - max 10MB\n"
+        "• Videos (MP4, MOV, AVI) - max 50MB\n"
+        "• Audio (MP3, OGG, WAV) - max 50MB\n"
+        "• Documents (PDF, DOC, DOCX) - max 50MB\n"
+        "• Archives (RAR, ZIP) - max 50MB\n"
+        "• Text (TXT, CSV) - max 50MB\n\n"
+        "⚠️ Files are automatically deleted after 24 hours."
     )
     await update.message.reply_text(help_message)
 

@@ -11,7 +11,9 @@ A Telegram bot that allows users to share files and get direct download links. T
   - Documents (PDF, DOC, DOCX)
   - Archives (RAR, ZIP)
   - Text files (TXT, CSV)
-- File size limit: 5GB
+- File size limits (Telegram API limits):
+  - Photos: 10MB
+  - Other files (documents, videos, audio): 50MB
 - Direct download links via HTTP
 - Automatic file cleanup
 - Screen session management
@@ -57,13 +59,20 @@ chmod +x start.sh stop.sh update.sh
 ## Usage
 
 ### Bot Commands
-- `/start` - Start the bot
-- `/help` - Show help message
+- `/start` - Start the bot and see welcome message
+- `/help` - Show help message with file size limits
 
 ### File Sharing
 1. Send any supported file to the bot
 2. The bot will provide a direct download link
 3. Files are automatically cleaned up after 24 hours
+
+### File Size Limits
+- Photos: Maximum 10MB
+- Documents: Maximum 50MB
+- Videos: Maximum 50MB
+- Audio files: Maximum 50MB
+- Archives (RAR, ZIP): Maximum 50MB
 
 ### Server Management
 
@@ -108,32 +117,32 @@ This will:
 
 ## File Types Support
 
-### Images
+### Images (max 10MB)
 - JPEG
 - PNG
 - GIF
 - WebP
 
-### Videos
+### Videos (max 50MB)
 - MP4
 - MOV
 - AVI
 
-### Audio
+### Audio (max 50MB)
 - MP3
 - OGG
 - WAV
 
-### Documents
+### Documents (max 50MB)
 - PDF
 - DOC
 - DOCX
 
-### Archives
+### Archives (max 50MB)
 - RAR
 - ZIP
 
-### Text
+### Text (max 50MB)
 - TXT
 - CSV
 
