@@ -29,7 +29,9 @@ ALLOWED_MIME_TYPES = {
     'audio/mpeg', 'audio/ogg', 'audio/wav',
     'application/pdf', 'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'text/plain', 'text/csv'
+    'text/plain', 'text/csv',
+    'application/x-rar-compressed', 'application/rar',
+    'application/zip', 'application/x-zip-compressed'
 }
 
 # Ensure files directory exists
