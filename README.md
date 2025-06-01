@@ -1,23 +1,25 @@
 # Telegram File Sharing Bot
 
-A Telegram bot that allows users to share files and get direct download links. The bot runs on an Ubuntu server and uses screen sessions for process management.
+A fully functional Telegram bot that allows users to share files and get direct download links. The bot runs on an Ubuntu server with Nginx as a reverse proxy and uses screen sessions for process management.
 
 ## Features
 
-- Supports various file types:
+- ✅ Supports various file types:
   - Images (JPEG, PNG, GIF, WebP)
   - Videos (MP4, MOV, AVI)
   - Audio files (MP3, OGG, WAV)
   - Documents (PDF, DOC, DOCX)
   - Archives (RAR, ZIP)
   - Text files (TXT, CSV)
-- File size limits (Telegram API limits):
+- ✅ File size limits (Telegram API limits):
   - Photos: 10MB
   - Other files (documents, videos, audio): 50MB
-- Direct download links via HTTP
-- Automatic file cleanup
-- Screen session management
-- Easy update process
+- ✅ Direct download links via HTTP
+- ✅ Automatic file cleanup after 24 hours
+- ✅ Screen session management
+- ✅ Easy update process
+- ✅ Nginx reverse proxy for better performance
+- ✅ DuckDNS integration for dynamic DNS
 
 ## Prerequisites
 
@@ -25,6 +27,8 @@ A Telegram bot that allows users to share files and get direct download links. T
 - Python 3.8 or higher
 - Git
 - Screen
+- Nginx
+- DuckDNS account
 
 ## Installation
 
@@ -51,7 +55,65 @@ source ~/.bashrc
 chmod +x start.sh stop.sh update.sh
 ```
 
-4. Start the services:
+4. Configure Nginx:
+```bash
+sudo nano /etc/nginx/sites-available/than05.duckdns.org
+```
+Add the following configuration:
+```nginx
+server {
+    listen 80;
+    server_name than05.duckdns.org;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Increase timeouts for large file uploads
+        proxy_connect_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+
+        # Increase max body size to 50MB
+        client_max_body_size 50M;
+    }
+}
+```
+
+5. Enable the Nginx site:
+```bash
+sudo ln -s /etc/nginx/sites-available/than05.duckdns.org /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+6. Configure firewall (iptables):
+```bash
+# Backup current rules
+sudo iptables-save > ~/iptables.backup
+
+# Flush existing rules
+sudo iptables -F
+
+# Set default policies
+sudo iptables -P INPUT ACCEPT
+sudo iptables -P FORWARD ACCEPT
+sudo iptables -P OUTPUT ACCEPT
+
+# Add essential rules
+sudo iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 8080 -j ACCEPT
+
+# Save rules
+sudo netfilter-persistent save
+```
+
+7. Start the services:
 ```bash
 ./start.sh
 ```
@@ -148,11 +210,13 @@ This will:
 
 ## Security Features
 
-- File type validation
-- File size limits
-- Automatic file cleanup
-- CORS support
-- Security headers
+- ✅ File type validation
+- ✅ File size limits
+- ✅ Automatic file cleanup
+- ✅ CORS support
+- ✅ Security headers
+- ✅ Nginx reverse proxy
+- ✅ Proper firewall configuration
 
 ## Troubleshooting
 
@@ -172,6 +236,24 @@ screen -ls
 To kill all screen sessions:
 ```bash
 pkill screen
+```
+
+### Nginx Issues
+Check Nginx status:
+```bash
+sudo systemctl status nginx
+```
+
+Check Nginx logs:
+```bash
+sudo tail -f /var/log/nginx/error.log
+sudo tail -f /var/log/nginx/access.log
+```
+
+### Firewall Issues
+Check iptables rules:
+```bash
+sudo iptables -L -n
 ```
 
 ## Contributing
